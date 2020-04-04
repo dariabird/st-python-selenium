@@ -1,10 +1,15 @@
+import os
 import pytest
+import re
+import time
+import uuid
+
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
-import re
 
 
 @pytest.fixture
@@ -198,3 +203,213 @@ def test_compare_product_data(driver):
     assert actual_regular_price_num > actual_campaign_price_num
     assert actual_regular_price_num == regular_price_num
     assert actual_campaign_price_num == campaign_price_num
+
+
+def login_user(driver, login, password):
+    driver.find_element_by_xpath('//input[@name="email"]').send_keys(login)
+    driver.find_element_by_xpath('//input[@name="password"]').send_keys(password)
+    driver.find_element_by_xpath('//button[@name="login"]').click()
+
+
+def logout_user(driver):
+    wait_for_element_present(driver, (By.XPATH, '//a[contains(.,"Logout")]')).click()
+
+
+def create_unique_email():
+    return str(uuid.uuid4()) + "@test.com"
+
+
+def register_new_user(driver, email, tax_id="123", company="Test company", first_name="First",
+                      last_name="Last name", address_1="Address 1", address_2="Address 2",
+                      postcode="12345-6789", city="City", country="United States", state="Alaska",
+                      phone="+71234567901", is_newsletter=True, desired_password="pass", confirm_password="pass"):
+    driver.find_element_by_xpath('//a[contains(.,"New customers click here")]').click()
+    wait_for_element_present(driver, (By.CSS_SELECTOR, "h1.title"))
+    email_field = driver.find_element_by_xpath('//input[@name="email"]')
+    tax_id_field = driver.find_element_by_xpath('//input[@name="tax_id"]')
+    company_field = driver.find_element_by_xpath('//input[@name="company"]')
+    first_name_field = driver.find_element_by_xpath('//input[@name="firstname"]')
+    last_name_field = driver.find_element_by_xpath('//input[@name="lastname"]')
+    address_1_field = driver.find_element_by_xpath('//input[@name="address1"]')
+    address_2_field = driver.find_element_by_xpath('//input[@name="address2"]')
+    postcode_field = driver.find_element_by_xpath('//input[@name="postcode"]')
+    city_field = driver.find_element_by_xpath('//input[@name="city"]')
+    country_field = Select(driver.find_element_by_xpath('//select[@name="country_code"]'))
+    state_field = Select(driver.find_element_by_xpath('//select[@name="zone_code"]'))
+    phone_field = driver.find_element_by_xpath('//input[@name="phone"]')
+    newsletter_checkbox = driver.find_element_by_xpath('//input[@name="newsletter"]')
+    desired_password_field = driver.find_element_by_xpath('//input[@name="password"]')
+    confirm_password_field = driver.find_element_by_xpath('//input[@name="confirmed_password"]')
+    create_account_btn = driver.find_element_by_xpath('//button[@name="create_account"]')
+
+    tax_id_field.send_keys(tax_id)
+    company_field.send_keys(company)
+    first_name_field.send_keys(first_name)
+    last_name_field.send_keys(last_name)
+    address_1_field.send_keys(address_1)
+    address_2_field.send_keys(address_2)
+    postcode_field.send_keys(postcode)
+    city_field.send_keys(city)
+    country_field.select_by_visible_text(country)
+    state_field.select_by_visible_text(state)
+    email_field.send_keys(email)
+    phone_field.send_keys(phone)
+    desired_password_field.send_keys(desired_password)
+    confirm_password_field.send_keys(confirm_password)
+    newsletter_checkbox.click()
+    create_account_btn.click()
+
+
+# Задание 11. Сделайте сценарий регистрации пользователя
+def test_register_new_user(driver):
+    driver.get("http://localhost/litecart/en/")
+    email = create_unique_email()
+    password = "test"
+    register_new_user(driver, email, desired_password=password, confirm_password=password)
+    logout_user(driver)
+    login_user(driver, email, password)
+    logout_user(driver)
+
+
+def open_add_new_product_page(driver):
+    catalog_menu_item = wait_for_element_present(driver, (By.XPATH, '//li[@id="app-"]/a[contains(.,"Catalog")]'))
+    time.sleep(1)
+    catalog_menu_item.click()
+    add_new_product_btn = driver.find_element_by_xpath('//a[contains(.,"Add New Product")]')
+    add_new_product_btn.click()
+    wait_for_element_present(driver, (By.XPATH, '//h1[contains(.,"Add New Product")]")'))
+
+
+def fill_in_product_general_info(driver, image_path, status="Enabled", name="Pink Dotted", code="12345",
+                                 categories=["Root", "Rubber Ducks"], default_category="Rubber Ducks",
+                                 product_groups=["Unisex"], quantity=4,
+                                 quantity_unit="pcs", delivery_status="3-5 days",
+                                 sold_out_status="Temporary sold out", date_valid_from="12.02.2020",
+                                 date_valid_to="12.06.2020"):
+    general_info_tab = driver.find_element_by_xpath('//a[contains(.,"General")]')
+    general_info_tab.click()
+    time.sleep(1)
+    if status == "Enabled":
+        status_radio_btn = driver.find_element_by_xpath('//input[@type="radio" and @value=1]')
+    else:
+        status_radio_btn = driver.find_element_by_xpath('//input[@type="radio" and @value=0]')
+    status_radio_btn.click()
+
+    name_field = driver.find_element_by_css_selector('input[name^=name]')
+    name_field.send_keys(name)
+
+    code_field = driver.find_element_by_name('code')
+    code_field.send_keys(code)
+
+    for category in categories:
+        category_checkbox = driver.find_element_by_css_selector('input[data-name="{}"]'.format(category))
+        if category_checkbox.is_selected():
+            pass
+        else:
+            category_checkbox.click()
+
+    default_categories_select = Select(driver.find_element_by_name('default_category_id'))
+    default_categories_select.select_by_visible_text(default_category)
+
+    for product_group in product_groups:
+        product_group_el = driver.find_element_by_xpath('//input[@name="product_groups[]"]/../../td[contains(.,"{}")]'
+                                                        .format(product_group))
+        product_group_el.find_element_by_xpath("./../td/input").click()
+
+    quantity_field = driver.find_element_by_name("quantity")
+    driver.execute_script("arguments[0].value=arguments[1]", quantity_field, str(quantity))
+
+    quantity_units_select = Select(driver.find_element_by_name("quantity_unit_id"))
+    quantity_units_select.select_by_visible_text(quantity_unit)
+
+    delivery_status_select = Select(driver.find_element_by_name("delivery_status_id"))
+    delivery_status_select.select_by_visible_text(delivery_status)
+
+    sold_out_status_select = Select(driver.find_element_by_name("sold_out_status_id"))
+    sold_out_status_select.select_by_visible_text(sold_out_status)
+
+    image_field = driver.find_element_by_name("new_images[]")
+    image_field.send_keys(image_path)
+
+    date_valid_from_field = driver.find_element_by_name("date_valid_from")
+    date_valid_from_field.send_keys(date_valid_from)
+    date_valid_to_field = driver.find_element_by_name("date_valid_to")
+    date_valid_to_field.send_keys(date_valid_to)
+
+
+def fill_in_product_information(driver, manufacturer="ACME Corp.", keywords="dots", short_descrition="Pink Dotted Duck",
+                                description="Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+                                            "Phasellus id convallis ipsum. Quisque viverra urna a massa facilisis, "
+                                            "nec blandit dolor tempor.", head_title="Pink",
+                                meta_description="Pink rubber duck with dots"):
+    info_tab = driver.find_element_by_xpath('//a[contains(.,"Information")]')
+    info_tab.click()
+    time.sleep(2)
+    manufacturer_select = Select(driver.find_element_by_name("manufacturer_id"))
+    manufacturer_select.select_by_visible_text(manufacturer)
+    keywords_field = driver.find_element_by_name("keywords")
+    keywords_field.send_keys(keywords)
+    short_description_field = driver.find_element_by_css_selector("[name^=short_description]")
+    short_description_field.send_keys(short_descrition)
+    description_field = driver.find_element_by_css_selector(".trumbowyg-editor")
+    driver.execute_script("arguments[0].innerText=arguments[1]", description_field, description)
+    description_field.send_keys(description)
+    head_title_field = driver.find_element_by_css_selector("[name^=head_title]")
+    head_title_field.send_keys(head_title)
+    meta_description_field = driver.find_element_by_css_selector("[name^=meta_description]")
+    meta_description_field.send_keys(meta_description)
+
+
+def fill_in_product_prices(driver, purchase_price=5, currency="Euros",
+                           price_usd=10, price_usd_tax=12,
+                           price_euro=9, price_euro_tax=10):
+    prices_tab = driver.find_element_by_xpath('//a[contains(.,"Prices")]')
+    prices_tab.click()
+    purchase_price_field = driver.find_element_by_name("purchase_price")
+    driver.execute_script("arguments[0].value=arguments[1]", purchase_price_field, str(purchase_price))
+    currency_select=Select(driver.find_element_by_name("purchase_price_currency_code"))
+    currency_select.select_by_visible_text(currency)
+    price_usd_field = driver.find_element_by_name("prices[USD]")
+    price_usd_field.send_keys(str(price_usd))
+    price_usd_tax_field = driver.find_element_by_name("gross_prices[USD]")
+    driver.execute_script("arguments[0].value=arguments[1]", price_usd_tax_field, str(price_usd_tax))
+    price_euro_field = driver.find_element_by_name("prices[EUR]")
+    price_euro_field.send_keys(str(price_euro))
+    price_euro_tax_field = driver.find_element_by_name("gross_prices[EUR]")
+    driver.execute_script("arguments[0].value=arguments[1]", price_euro_tax_field, str(price_euro_tax))
+
+
+def login_admin(driver, login="admin", password="admin"):
+    login_field = driver.find_element_by_name("username")
+    login_field.send_keys(login)
+    password_field = driver.find_element_by_name("password")
+    password_field.send_keys(password)
+    login_button = driver.find_element_by_name("login")
+    login_button.click()
+
+
+def save_product(driver):
+    driver.find_element_by_name("save").click()
+
+
+def is_product_appeared(driver, product_name="Pink Dotted"):
+    product_rows = driver.find_elements_by_css_selector(".dataTable .row")
+    for product_row in product_rows:
+        if product_name in product_row.text:
+            return True
+    return False
+
+
+# Задание 12. Сделайте сценарий добавления товара
+def test_add_new_product(driver):
+    driver.get("http://localhost/litecart/admin/")
+    login_admin(driver)
+    open_add_new_product_page(driver)
+    image_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "duck.jpg")
+    product_name = "Super Pink Dotted"
+    fill_in_product_general_info(driver, image_path, name=product_name)
+    fill_in_product_information(driver)
+    fill_in_product_prices(driver)
+    save_product(driver)
+    assert is_product_appeared(driver, product_name=product_name)
+
