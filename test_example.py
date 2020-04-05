@@ -17,7 +17,7 @@ def driver(request):
     chrome_driver = webdriver.Chrome()
     # firefox_driver = webdriver.Firefox(firefox_binary="/Applications/Firefox Nightly.app/Contents/MacOS/firefox")
     # safari_driver = webdriver.Safari()
-    chrome_driver.implicitly_wait(10)
+    chrome_driver.implicitly_wait(5)
     request.addfinalizer(chrome_driver.quit)
     return chrome_driver
 
@@ -51,6 +51,13 @@ def are_elements_present(driver, *args):
 def wait_for_element_present(driver, locator, timeout=10):
     try:
         return WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator))
+    except TimeoutException:
+        return None
+
+
+def wait_for_elements_present(driver, locator, timeout=10):
+    try:
+        return WebDriverWait(driver, timeout).until(EC.presence_of_all_elements_located(locator))
     except TimeoutException:
         return None
 
@@ -413,3 +420,61 @@ def test_add_new_product(driver):
     save_product(driver)
     assert is_product_appeared(driver, product_name=product_name)
 
+
+class is_text_of_element_changed(object):
+    def __init__(self, locator, text):
+        self.locator = locator
+        self.text = text
+
+    def __call__(self, driver):
+        actual_text = driver.find_element(*self.locator).text
+        return actual_text != self.text
+
+
+def add_first_product_to_cart(driver):
+    products = driver.find_elements_by_css_selector('ul.products li')
+    time.sleep(1)
+    products[0].click()
+    add_to_cart_button = wait_for_element_present(driver, (By.NAME, "add_cart_product"))
+    if is_element_present(driver, By.CSS_SELECTOR, 'select[name="options[Size]"]'):
+        size_selector = Select(driver.find_element_by_css_selector('select[name="options[Size]"]'))
+        size_selector.select_by_index(1)
+    cart_counter_text = driver.find_element_by_css_selector('a.content').text
+    add_to_cart_button.click()
+    WebDriverWait(driver, 10).until(is_text_of_element_changed((By.CSS_SELECTOR, 'a.content'), cart_counter_text))
+
+
+def go_home(driver):
+    driver.find_element_by_css_selector('i[title=Home]').click()
+    wait_for_element_present(driver, (By.XPATH, '//h3[contains(.,"Most Popular")]'))
+
+
+def go_to_cart(driver):
+    driver.find_element_by_xpath('//a[contains(., "Checkout")]').click()
+    wait_for_element_present(driver, (By.XPATH, '//h2[contains(.,"Order Summary")]'))
+
+
+def delete_product_from_cart(driver):
+    if are_elements_present(driver, By.CSS_SELECTOR, 'ul.shortcuts li'):
+        shortcut = driver.find_element_by_css_selector('ul.shortcuts li a')
+        time.sleep(1)
+        shortcut.click()
+    if is_element_present(driver, By.CSS_SELECTOR, 'button[name="remove_cart_item"]'):
+        order_summary = driver.find_element_by_id("box-checkout-summary")
+        remove_button = driver.find_element_by_css_selector('button[name="remove_cart_item"]')
+        remove_button.click()
+        WebDriverWait(driver, 10).until(EC.staleness_of(order_summary))
+
+
+# Задание 13. Сделайте сценарий работы с корзиной
+def test_work_with_cart(driver):
+    driver.get("http://localhost/litecart/en/")
+    add_first_product_to_cart(driver)
+    go_home(driver)
+    add_first_product_to_cart(driver)
+    go_home(driver)
+    add_first_product_to_cart(driver)
+    go_to_cart(driver)
+    delete_product_from_cart(driver)
+    delete_product_from_cart(driver)
+    delete_product_from_cart(driver)
