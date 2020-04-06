@@ -469,12 +469,9 @@ def delete_product_from_cart(driver):
 # Задание 13. Сделайте сценарий работы с корзиной
 def test_work_with_cart(driver):
     driver.get("http://localhost/litecart/en/")
-    add_first_product_to_cart(driver)
-    go_home(driver)
-    add_first_product_to_cart(driver)
-    go_home(driver)
-    add_first_product_to_cart(driver)
+    for i in range(3):
+        add_first_product_to_cart(driver)
+        go_home(driver)
     go_to_cart(driver)
-    delete_product_from_cart(driver)
-    delete_product_from_cart(driver)
-    delete_product_from_cart(driver)
+    for i in range(3):
+        delete_product_from_cart(driver)
