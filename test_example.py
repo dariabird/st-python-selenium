@@ -475,3 +475,61 @@ def test_work_with_cart(driver):
     go_to_cart(driver)
     for i in range(3):
         delete_product_from_cart(driver)
+
+
+def get_countries_list(driver):
+    countries_cells = driver.find_elements_by_xpath('//tr[@class="row"]/td[5]')
+    countries = []
+    for country_cell in countries_cells:
+        countries.append(country_cell.text)
+    return countries
+
+
+def open_country_page(driver, country):
+    wait_for_element_present(driver, (By.XPATH, '//h1[contains(.,"Countries")]'))
+    country_cell = driver.find_element_by_xpath('//*[contains(.,"{}")]/a'.format(country))
+    country_cell.click()
+    wait_for_element_present(driver, (By.XPATH, '//h1[contains(.,"Edit Country")]'))
+
+
+def go_back_to_countries_list(driver):
+    driver.back()
+
+
+class there_is_window_other_than(object):
+    def __init__(self, old_windows):
+        self.old_windows = old_windows
+
+    def __call__(self, driver):
+        all_handles_set = set(driver.window_handles)
+        old_windows_set = set(self.old_windows)
+        diff = all_handles_set.difference(old_windows_set)
+        if len(diff) > 0:
+            return diff.pop()
+        return None
+
+
+def open_link_in_new_window_and_go_back(driver, link):
+    main_window = driver.current_window_handle
+    old_windows = driver.window_handles
+    time.sleep(2)
+    link.click()
+    new_window = WebDriverWait(driver, 20).until(there_is_window_other_than(old_windows))
+    driver.switch_to.window(new_window)
+    driver.close()
+    driver.switch_to.window(main_window)
+
+
+def get_external_links(driver):
+    return driver.find_elements_by_css_selector('i.fa-external-link')
+
+
+# Задание 14. Проверьте, что ссылки открываются в новом окне
+def test_open_another_window(driver):
+    driver.get("http://localhost/litecart/admin/?app=countries&doc=countries")
+    login_admin(driver)
+    time.sleep(2)
+    open_country_page(driver, "Angola")
+    external_links = get_external_links(driver)
+    for external_link in external_links:
+        open_link_in_new_window_and_go_back(driver, external_link)
