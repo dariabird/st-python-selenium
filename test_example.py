@@ -533,3 +533,27 @@ def test_open_another_window(driver):
     external_links = get_external_links(driver)
     for external_link in external_links:
         open_link_in_new_window_and_go_back(driver, external_link)
+
+
+def are_browser_logs_empty(driver):
+    return len(driver.get_log("browser")) == 0
+
+
+def check_logs_for_products(driver):
+    wait_for_elements_present(driver, (By.XPATH, '//table[@class="dataTable"]//tr[@class="row"]//td[3]/a'))
+    product_links = []
+    catalog_links = driver.find_elements_by_xpath('//table[@class="dataTable"]//tr[@class="row"]//td[3]/a')
+    for catalog_link in catalog_links:
+        link_url = catalog_link.get_attribute("href")
+        if "product_id" in link_url:
+            product_links.append(link_url)
+    for product_link in product_links:
+        driver.get(product_link)
+        assert are_browser_logs_empty(driver)
+
+
+# Задание 17. Проверьте отсутствие сообщений в логе браузера
+def test_browser_logs(driver):
+    driver.get("http://localhost/litecart/admin/?app=catalog&doc=catalog&category_id=1")
+    login_admin(driver)
+    check_logs_for_products(driver)
